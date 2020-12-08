@@ -1,9 +1,10 @@
-const User = require('../models/user');
-const jwt = require('jsonwebtoken');
+const User = require("../models/user");
+const jwt = require("jsonwebtoken");
 const SECRET = process.env.SECRET;
 
 module.exports = {
-  signup
+  signup,
+  login,
 };
 
 async function signup(req, res) {
@@ -12,17 +13,46 @@ async function signup(req, res) {
     await user.save();
     // Send back a JWT and the user
     const token = createJWT(user);
-    res.json( { token, user });
+    res.json({
+      token,
+      user,
+    });
   } catch (err) {
     // Probably a duplicate email
     res.status(400).json(err);
   }
 }
 
+async function login(req, res) {
+  try {
+    const user = await User.findOne({
+      email: req.body.email,
+    });
+    if (!user)
+      return res.status(401).json({
+        err: "Error, bad credentials",
+      });
+    user.comparePassword(req.body.password, (err, isMatch) => {
+      if (isMatch) {
+        const token = createJWT(user);
+        res.json({ token, user });
+      } else {
+        return res.status(401).json({ err: "Bad Credentials" });
+      }
+    });
+  } catch (err) {
+    return res.status(401).json(err);
+  }
+}
+
 function createJWT(user) {
   return jwt.sign(
-    { user }, // data payload
+    {
+      user,
+    }, // data payload
     SECRET,
-    { expiresIn: '60d'}
-  )
+    {
+      expiresIn: "60d",
+    }
+  );
 }
